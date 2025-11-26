@@ -1,20 +1,22 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Phishing Detector</title>
   <link rel="stylesheet" href="popup.css">
 </head>
+
 <body>
   <div class="container">
     <h1>Phishing Detector</h1>
-    <div id="status" class="status safe">
+    <div id="status" class="status warning">
       <span class="icon">🛡️</span>
-      <span class="text">System Ready</span>
+      <span class="text">Scan for the result</span>
     </div>
     <div class="actions">
-      <button id="scanBtn">Scan Current Email</button>
+      <button id="scanBtn">Scan</button>
     </div>
     <div id="result" class="result hidden">
       <p>Analysis Result:</p>
@@ -23,4 +25,5 @@
   </div>
   <script src="popup.js"></script>
 </body>
+
 </html>

@@ -4,6 +4,49 @@ document.addEventListener('DOMContentLoaded', () => {
     const analysisText = document.getElementById('analysisText');
     const statusDiv = document.getElementById('status');
 
+    // Helper to update UI
+    function updateUI(response) {
+        resultDiv.classList.remove('hidden');
+        if (response && response.status === "scanned") {
+            // Clear previous text
+            analysisText.textContent = "";
+
+            // Update status UI based on result
+            if (response.result === 'safe') {
+                statusDiv.className = 'status safe';
+                statusDiv.querySelector('.icon').textContent = '🛡️';
+                statusDiv.querySelector('.text').textContent = 'Safe';
+            } else {
+                statusDiv.className = 'status danger';
+                statusDiv.querySelector('.icon').textContent = '⚠️';
+                statusDiv.querySelector('.text').textContent = 'Suspicious';
+            }
+
+            // Show flags if any
+            if (response.analysis && response.analysis.flags.length > 0) {
+                const flagsHtml = response.analysis.flags.map(flag => `<li>${flag}</li>`).join('');
+                analysisText.innerHTML += `<ul style="text-align: left; margin-top: 8px;">${flagsHtml}</ul>`;
+            }
+        } else {
+            analysisText.textContent = response ? response.message : "Scan failed.";
+        }
+    }
+
+    // Check for cached result on load
+    chrome.tabs.query({ active: true, currentWindow: true }, async (tabs) => {
+        const tab = tabs[0];
+        if (tab && tab.url.includes('mail.google.com')) {
+            try {
+                const response = await chrome.tabs.sendMessage(tab.id, { action: "get_cache" });
+                if (response) {
+                    updateUI(response);
+                }
+            } catch (e) {
+                // Content script might not be ready or no cache
+            }
+        }
+    });
+
     scanBtn.addEventListener('click', async () => {
         // Get the active tab
         const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
@@ -17,25 +60,7 @@ document.addEventListener('DOMContentLoaded', () => {
         // Send message to content script
         try {
             const response = await chrome.tabs.sendMessage(tab.id, { action: "scan_email" });
-
-            resultDiv.classList.remove('hidden');
-
-            if (response && response.status === "scanned") {
-                analysisText.textContent = `Scan Complete: ${response.result.toUpperCase()}`;
-
-                // Update status UI based on result
-                if (response.result === 'safe') {
-                    statusDiv.className = 'status safe';
-                    statusDiv.querySelector('.text').textContent = 'Safe';
-                    statusDiv.querySelector('.icon').textContent = '🛡️';
-                } else {
-                    statusDiv.className = 'status danger';
-                    statusDiv.querySelector('.text').textContent = 'Suspicious';
-                    statusDiv.querySelector('.icon').textContent = '⚠️';
-                }
-            } else {
-                analysisText.textContent = response ? response.message : "Scan failed.";
-            }
+            updateUI(response);
         } catch (error) {
             console.error(error);
             analysisText.textContent = "Could not communicate with page. Try refreshing.";

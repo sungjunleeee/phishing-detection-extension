@@ -1,41 +1,208 @@
 // Content script for Gmail
 console.log("Phishing Detector content script loaded on Gmail.");
 
-// Simple observer to detect when email content might be loaded
-// Gmail is a SPA, so we need to watch for DOM changes or URL changes
-// This is a basic placeholder for the detection engine entry point
+// Selectors for Gmail elements (subject to change by Google)
+const SELECTORS = {
+    senderName: 'span.gD', // Sender Name
+    senderEmail: 'span.go', // Sender Email (< email >)
+    subject: 'h2.hP', // Subject Line
+    body: 'div.a3s.aiL', // Email Body container
+    replyBody: 'div.gmail_quote', // Quoted text (to exclude if needed)
+    recipientDetails: 'div.ajy' // Container for To/Cc details (often hidden)
+};
 
-const observer = new MutationObserver((mutations) => {
-    // In a real implementation, we would check for specific Gmail selectors
-    // that indicate an open email view.
-    // For now, we just log that activity is happening.
-    // Debounce or limit this in production to avoid performance issues.
-});
+function extractEmailData() {
+    const senderNameNode = document.querySelector(SELECTORS.senderName);
+    const senderEmailNode = document.querySelector(SELECTORS.senderEmail);
+    const subjectNode = document.querySelector(SELECTORS.subject);
+    const bodyNode = document.querySelector(SELECTORS.body);
 
-observer.observe(document.body, {
-    childList: true,
-    subtree: true
-});
-
-// Example function to extract text from the body (simplified)
-function extractEmailContent() {
-    // Gmail structure is complex, this is just a placeholder
-    const emailBody = document.querySelector('.a3s.aiL'); // Common class for email body in Gmail
-    if (emailBody) {
-        console.log("Email content found:", emailBody.innerText.substring(0, 100) + "...");
-        return emailBody.innerText;
+    if (!bodyNode) {
+        console.log("Phishing Detector: No email body found. User might be in inbox view.");
+        return null;
     }
-    return null;
-}
 
-// Listen for messages from popup or background
-chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
-    if (request.action === "scan_email") {
-        const content = extractEmailContent();
-        if (content) {
-            sendResponse({ status: "scanned", result: "safe" }); // Mock result
-        } else {
-            sendResponse({ status: "error", message: "No email content found" });
+    // Robust Sender Email Extraction
+    let senderEmail = "Unknown";
+    if (senderEmailNode) {
+        senderEmail = senderEmailNode.innerText.replace(/[<>]/g, '');
+    } else if (senderNameNode && senderNameNode.getAttribute('email')) {
+        // Fallback: Gmail often stores the email in the 'email' attribute of the name node
+        senderEmail = senderNameNode.getAttribute('email');
+    }
+
+    // Attempt to extract To/Cc
+    // Strategy 1: Standard "to me" section
+    const recipientNode = document.querySelector('.g2');
+    let recipients = "Unknown";
+
+    if (recipientNode) {
+        recipients = recipientNode.innerText;
+        const emailNodes = recipientNode.querySelectorAll('[email]');
+        if (emailNodes.length > 0) {
+            const emailList = Array.from(emailNodes).map(node => node.getAttribute('email'));
+            recipients += ` (${emailList.join(', ')})`;
         }
     }
+
+    // Strategy 2: User-provided selector (likely for expanded details or specific view)
+    // #avWBGd-1 > ... > div.iw.ajw > span > span
+    // We generalize this to avoid the specific ID at the start
+    if (recipients === "Unknown" || recipients === "me" || !recipients.includes('@')) {
+        const specificNode = document.querySelector('div.iw.ajw > span > span');
+        if (specificNode) {
+            recipients = specificNode.innerText;
+            // Check if there's an email attribute here too
+            if (specificNode.getAttribute('email')) {
+                recipients += ` (${specificNode.getAttribute('email')})`;
+            }
+        }
+    }
+
+    // Strategy 3: Check title attribute of the recipient node (common in Gmail for tooltips)
+    if (!recipients.includes('@') && recipientNode) {
+        const title = recipientNode.getAttribute('title');
+        if (title && title.includes('@')) {
+            recipients += ` (${title})`;
+        }
+    }
+
+    const data = {
+        senderName: senderNameNode ? senderNameNode.innerText : "Unknown",
+        senderEmail: senderEmail,
+        recipients: recipients, // New field
+        subject: subjectNode ? subjectNode.innerText : "No Subject",
+        bodyText: bodyNode.innerText,
+        links: Array.from(bodyNode.querySelectorAll('a')).map(a => a.href),
+        timestamp: new Date().toISOString()
+    };
+
+    console.log("Phishing Detector: Extracted Data", data);
+    return data;
+}
+
+// Cache for the last analysis result
+let cachedResult = null;
+let cachedUrl = "";
+
+// Listen for messages from popup
+chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+    if (request.action === "get_cache") {
+        if (cachedResult && cachedUrl === location.href) {
+            sendResponse(cachedResult);
+        } else {
+            sendResponse(null);
+        }
+        return true;
+    }
+
+    if (request.action === "scan_email") {
+        // Check cache first
+        if (cachedResult && cachedUrl === location.href) {
+            console.log("Phishing Detector: Returning cached result");
+            sendResponse(cachedResult);
+            return true;
+        }
+
+        const emailData = extractEmailData();
+
+        if (emailData) {
+            const analysisResult = runAnalysis(emailData);
+
+            // Update badge after manual scan
+            updateBadge(analysisResult);
+
+            const response = {
+                status: "scanned",
+                data: emailData,
+                result: analysisResult.isSuspicious ? "suspicious" : "safe",
+                analysis: analysisResult
+            };
+
+            // Cache the result
+            cachedResult = response;
+            cachedUrl = location.href;
+
+            sendResponse(response);
+        } else {
+            sendResponse({
+                status: "error",
+                message: "No email open or content not found."
+            });
+        }
+    }
+    return true; // Keep message channel open for async response
 });
+
+// Helper to run analysis
+function runAnalysis(emailData) {
+    let analysisResult = { score: 0, flags: [], isSuspicious: false };
+    if (window.PhishingHeuristics) {
+        analysisResult = window.PhishingHeuristics.analyze(emailData);
+        console.log("Phishing Detector: Analysis Result", analysisResult);
+    } else {
+        console.error("Phishing Detector: Heuristics engine not loaded.");
+    }
+    return analysisResult;
+}
+
+// Auto-scan observer for Privacy (Only detects presence, does not scan)
+let lastUrl = location.href;
+const observer = new MutationObserver(() => {
+    // Check if URL changed (Gmail changes URL hash when opening emails)
+    if (location.href !== lastUrl) {
+        lastUrl = location.href;
+        // Clear cache on navigation
+        cachedResult = null;
+        cachedUrl = "";
+        checkForEmailPresence();
+    }
+
+    // Also check if an email body appeared (for initial load)
+    if (document.querySelector(SELECTORS.body)) {
+        checkForEmailPresence();
+    }
+});
+
+observer.observe(document.body, { subtree: true, childList: true });
+
+let presenceDebounce = null;
+function checkForEmailPresence() {
+    if (presenceDebounce) clearTimeout(presenceDebounce);
+    presenceDebounce = setTimeout(() => {
+        // Check if we already have a result for this email
+        if (cachedResult && cachedUrl === location.href) {
+            return;
+        }
+
+        // We only check if the BODY element exists, we don't extract data yet
+        const bodyNode = document.querySelector(SELECTORS.body);
+        if (bodyNode) {
+            // Email detected! Set badge to "scan" (Yellow)
+            chrome.runtime.sendMessage({
+                action: "update_badge",
+                text: "Scan",
+                color: "#FBC02D" // Yellow
+            });
+        } else {
+            // Clear badge if no email found
+            chrome.runtime.sendMessage({ action: "update_badge", text: "" });
+        }
+    }, 1000); // Wait 1s for DOM to settle
+}
+
+function updateBadge(result) {
+    if (result.isSuspicious) {
+        chrome.runtime.sendMessage({
+            action: "update_badge",
+            text: "!",
+            color: "#D32F2F" // Red
+        });
+    } else {
+        chrome.runtime.sendMessage({
+            action: "update_badge",
+            text: "Safe",
+            color: "#388E3C" // Green
+        });
+    }
+}

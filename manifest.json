@@ -34,6 +34,7 @@
         "*://mail.google.com/*"
       ],
       "js": [
+        "utils/heuristics.js",
         "content.js"
       ],
       "run_at": "document_idle"
