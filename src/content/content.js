@@ -8,7 +8,8 @@ const SELECTORS = {
     subject: 'h2.hP', // Subject Line
     body: 'div.a3s.aiL', // Email Body container
     replyBody: 'div.gmail_quote', // Quoted text (to exclude if needed)
-    recipientDetails: 'div.ajy' // Container for To/Cc details (often hidden)
+    recipientDetails: 'div.ajy', // Container for To/Cc details (often hidden)
+    verifiedIcon: 'span.bce[alt="Verified Sender"]' // Verified Sender Icon
 };
 
 function extractEmailData() {
@@ -16,6 +17,7 @@ function extractEmailData() {
     const senderEmailNode = document.querySelector(SELECTORS.senderEmail);
     const subjectNode = document.querySelector(SELECTORS.subject);
     const bodyNode = document.querySelector(SELECTORS.body);
+    const verifiedNode = document.querySelector(SELECTORS.verifiedIcon);
 
     if (!bodyNode) {
         console.log("Phishing Detector: No email body found. User might be in inbox view.");
@@ -70,10 +72,11 @@ function extractEmailData() {
     const data = {
         senderName: senderNameNode ? senderNameNode.innerText : "Unknown",
         senderEmail: senderEmail,
-        recipients: recipients, // New field
+        recipients: recipients,
         subject: subjectNode ? subjectNode.innerText : "No Subject",
         bodyText: bodyNode.innerText,
         links: Array.from(bodyNode.querySelectorAll('a')).map(a => a.href),
+        isVerified: !!verifiedNode, // True if verified icon exists
         timestamp: new Date().toISOString()
     };
 

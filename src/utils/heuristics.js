@@ -25,7 +25,12 @@ class HeuristicsEngine {
         const senderEmail = emailData.senderEmail.toLowerCase();
         const senderDomain = senderEmail.split('@')[1];
 
-        // 0. Check Allowlist/Blocklist
+        // 0. Check Verified Sender
+        if (emailData.isVerified) {
+            return { score: 0, flags: ['Verified Sender'], isSuspicious: false, isSkipped: true };
+        }
+
+        // 1. Check Allowlist/Blocklist
         if (allowlist.some(item => senderEmail.includes(item) || (senderDomain && senderDomain.includes(item)))) {
             return { score: 0, flags: ['Sender is in your Allowlist'], isSuspicious: false, isSkipped: true };
         }
