@@ -46,7 +46,16 @@ class HeuristicsEngine {
             flags.push('Sender name mismatch (Possible impersonation)');
         }
 
-        // 2. Check for Urgency
+        // 2. Check for Encryption (TLS/S/MIME)
+        if (emailData.encryptionStatus) {
+            const status = emailData.encryptionStatus.toLowerCase();
+            if (!status.includes('tls') && !status.includes('s/mime')) {
+                score += 100;
+                flags.push('Email is not encrypted (No TLS or S/MIME)');
+            }
+        }
+
+        // 3. Check for Urgency
         let urgencyScore = 0;
         const hasSubjectUrgency = this.hasUrgency(emailData.subject);
         const hasBodyUrgency = this.hasUrgency(emailData.bodyText);

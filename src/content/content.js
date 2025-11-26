@@ -80,6 +80,27 @@ function extractEmailData() {
         timestamp: new Date().toISOString()
     };
 
+    // Extract Encryption Status (TLS/S/MIME)
+    // We look for the security details in the expanded details pane (div.ajA.SK)
+    // Since the ID is dynamic, we search for the container class
+    const detailsContainer = document.querySelector('div.ajA.SK');
+    if (detailsContainer) {
+        // Look for the security row. It usually contains a lock icon or text like "Standard encryption"
+        // The user pointed to a specific table row, but we'll try to find the text to be robust
+        const rows = Array.from(detailsContainer.querySelectorAll('tr'));
+        const securityRow = rows.find(row => row.innerText.includes('encryption') || row.innerText.includes('security') || row.innerText.includes('TLS') || row.innerText.includes('S/MIME'));
+
+        if (securityRow) {
+            data.encryptionStatus = securityRow.innerText;
+        } else {
+            // Fallback: Try the user's specific path if generic search fails, but generalize the ID
+            const specificNode = document.querySelector('div.adn.ads div.ajA.SK table tr:nth-child(7) td.gL span span');
+            if (specificNode) {
+                data.encryptionStatus = specificNode.innerText;
+            }
+        }
+    }
+
     console.log("Phishing Detector: Extracted Data", data);
     return data;
 }
@@ -100,45 +121,86 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     }
 
     if (request.action === "scan_email") {
-        // Check cache first
-        if (cachedResult && cachedUrl === location.href) {
-            console.log("Phishing Detector: Returning cached result");
-            sendResponse(cachedResult);
-            return true;
-        }
-
-        const emailData = extractEmailData();
-
-        if (emailData) {
-            const analysisResult = runAnalysis(emailData);
-
-            // Update badge after manual scan
-            updateBadge(analysisResult);
-
-            let resultStatus = analysisResult.isSuspicious ? "suspicious" : "safe";
-            if (analysisResult.isSkipped) resultStatus = "skipped";
-
-            const response = {
-                status: "scanned",
-                data: emailData,
-                result: resultStatus,
-                analysis: analysisResult
-            };
-
-            // Cache the result
-            cachedResult = response;
-            cachedUrl = location.href;
-
-            sendResponse(response);
-        } else {
-            sendResponse({
-                status: "error",
-                message: "No email open or content not found."
-            });
-        }
+        handleScanRequest(sendResponse);
+        return true; // Keep message channel open for async response
     }
-    return true; // Keep message channel open for async response
+    return true;
 });
+
+async function handleScanRequest(sendResponse) {
+    // Check cache first
+    if (cachedResult && cachedUrl === location.href) {
+        console.log("Phishing Detector: Returning cached result");
+        sendResponse(cachedResult);
+        return;
+    }
+
+    // Attempt to expand details if not visible
+    const wasExpanded = await expandDetails();
+
+    // Allow a brief moment for DOM to update after expansion
+    await new Promise(resolve => setTimeout(resolve, 50));
+
+    const emailData = extractEmailData();
+
+    // Restore state if we expanded it
+    if (wasExpanded) {
+        collapseDetails();
+    }
+
+    if (emailData) {
+        const analysisResult = runAnalysis(emailData);
+
+        // Update badge after manual scan
+        updateBadge(analysisResult);
+
+        let resultStatus = analysisResult.isSuspicious ? "suspicious" : "safe";
+        if (analysisResult.isSkipped) resultStatus = "skipped";
+
+        const response = {
+            status: "scanned",
+            data: emailData,
+            result: resultStatus,
+            analysis: analysisResult
+        };
+
+        // Cache the result
+        cachedResult = response;
+        cachedUrl = location.href;
+
+        sendResponse(response);
+    } else {
+        sendResponse({
+            status: "error",
+            message: "No email open or content not found."
+        });
+    }
+}
+
+// Helper to toggle details
+async function expandDetails() {
+    const detailsPane = document.querySelector('div.ajA.SK');
+    if (detailsPane) return false; // Already open
+
+    // Try to find the toggle button
+    // Strategy: Look for the arrow icon or the button with aria-label "Show details"
+    const toggleBtn = document.querySelector('span[aria-label="Show details"]') ||
+        document.querySelector('img.ajz');
+
+    if (toggleBtn) {
+        toggleBtn.click();
+        return true; // We opened it
+    }
+    return false;
+}
+
+function collapseDetails() {
+    const toggleBtn = document.querySelector('span[aria-label="Hide details"]') ||
+        document.querySelector('img.ajz');
+    if (toggleBtn) {
+        toggleBtn.click();
+    }
+}
 
 // Settings
 let settings = {
