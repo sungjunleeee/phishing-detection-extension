@@ -79,3 +79,35 @@ button:hover {
 .hidden {
   display: none;
 }
+
+/* Score Bar */
+.score-container {
+  margin-top: 10px;
+  position: relative;
+  padding-bottom: 20px;
+}
+
+.score-bar {
+  height: 10px;
+  border-radius: 5px;
+  background: linear-gradient(to right, #4caf50, #ffeb3b, #f44336);
+  width: 100%;
+}
+
+.score-arrow {
+  position: absolute;
+  top: -15px; /* Position above the bar */
+  left: 0%; /* Dynamic */
+  transform: translateX(-50%);
+  font-size: 16px;
+  color: #333;
+  transition: left 0.5s ease-out;
+}
+
+.score-labels {
+  display: flex;
+  justify-content: space-between;
+  font-size: 10px;
+  color: #666;
+  margin-top: 4px;
+}

@@ -31,6 +31,19 @@ document.addEventListener('DOMContentLoaded', () => {
                 const flagsHtml = response.analysis.flags.map(flag => `<li>${flag}</li>`).join('');
                 analysisText.innerHTML += `<ul style="text-align: left; margin-top: 8px;">${flagsHtml}</ul>`;
             }
+
+            // Update Score Bar
+            const scoreContainer = document.getElementById('scoreContainer');
+            const scoreArrow = document.getElementById('scoreArrow');
+
+            if (response.analysis && typeof response.analysis.score === 'number') {
+                scoreContainer.classList.remove('hidden');
+                // Clamp score between 0 and 100
+                const score = Math.max(0, Math.min(100, response.analysis.score));
+                scoreArrow.style.left = `${score}%`;
+            } else {
+                scoreContainer.classList.add('hidden');
+            }
         } else {
             analysisText.textContent = response ? response.message : "Scan failed.";
         }

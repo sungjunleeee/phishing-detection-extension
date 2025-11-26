@@ -34,7 +34,14 @@ class HeuristicsEngine {
             return { score: 100, flags: ['Sender is in your Blocklist'], isSuspicious: true };
         }
 
-        // 1. Check for Urgency
+        // 1. Check for Sender Mismatch
+        const mismatchScore = this.checkSenderMismatch(emailData.senderName, senderEmail);
+        if (mismatchScore > 0) {
+            score += mismatchScore;
+            flags.push('Sender name mismatch (Possible impersonation)');
+        }
+
+        // 2. Check for Urgency
         let urgencyScore = 0;
         const hasSubjectUrgency = this.hasUrgency(emailData.subject);
         const hasBodyUrgency = this.hasUrgency(emailData.bodyText);
@@ -49,14 +56,14 @@ class HeuristicsEngine {
             flags.push('Urgent language in body');
         }
 
-        // 2. Cap urgency score at 30 if both are present
+        // 3. Cap urgency score at 30 if both are present
         if (hasSubjectUrgency && hasBodyUrgency) {
             urgencyScore = 30;
         }
 
         score += urgencyScore;
 
-        // 3. Check for Suspicious Links
+        // 4. Check for Suspicious Links
         const linkAnalysis = this.analyzeLinks(emailData.links);
         if (linkAnalysis.hasIP) {
             score += 50;
@@ -86,6 +93,32 @@ class HeuristicsEngine {
         if (!text) return false;
         const lowerText = text.toLowerCase();
         return this.urgencyKeywords.some(keyword => lowerText.includes(keyword));
+    }
+
+    /**
+     * Check if the sender name tries to impersonate a different email.
+     * @param {string} name 
+     * @param {string} email 
+     * @returns {number} Score (0 or 50)
+     */
+    checkSenderMismatch(name, email) {
+        if (!name || !email) return 0;
+
+        // Extract potential email from name
+        // Regex to find email-like strings in the name
+        const emailRegex = /([a-zA-Z0-9._-]+@[a-zA-Z0-9._-]+\.[a-zA-Z0-9_-]+)/gi;
+        const matches = name.match(emailRegex);
+
+        if (matches) {
+            for (const match of matches) {
+                // If the name contains an email that is NOT the actual sender email
+                if (match.toLowerCase() !== email.toLowerCase()) {
+                    return 50; // High suspicion
+                }
+            }
+        }
+
+        return 0;
     }
 
     /**
