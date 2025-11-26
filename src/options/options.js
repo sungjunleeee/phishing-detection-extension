@@ -11,7 +11,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // Load settings
     chrome.storage.sync.get(['autoscan', 'allowlist', 'blocklist'], (result) => {
         autoscanToggle.checked = result.autoscan || false;
-        renderList(allowlistUl, result.allowlist || []);
+        renderList(allowlistUl, result.allowlist || ['columbia.edu']);
         renderList(blocklistUl, result.blocklist || []);
     });
 

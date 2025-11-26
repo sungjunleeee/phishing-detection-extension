@@ -140,7 +140,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 // Settings
 let settings = {
     autoscan: false,
-    allowlist: [],
+    allowlist: ['columbia.edu'],
     blocklist: []
 };
 
@@ -201,7 +201,7 @@ function handleEmailDetection() {
         } else {
             checkForEmailPresence();
         }
-    }, 1000);
+    }, 200);
 }
 
 function attemptAutoScan() {
