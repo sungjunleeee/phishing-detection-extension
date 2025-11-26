@@ -112,10 +112,13 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
             // Update badge after manual scan
             updateBadge(analysisResult);
 
+            let resultStatus = analysisResult.isSuspicious ? "suspicious" : "safe";
+            if (analysisResult.isSkipped) resultStatus = "skipped";
+
             const response = {
                 status: "scanned",
                 data: emailData,
-                result: analysisResult.isSuspicious ? "suspicious" : "safe",
+                result: resultStatus,
                 analysis: analysisResult
             };
 
@@ -134,11 +137,34 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     return true; // Keep message channel open for async response
 });
 
+// Settings
+let settings = {
+    autoscan: false,
+    allowlist: [],
+    blocklist: []
+};
+
+// Load settings
+chrome.storage.sync.get(['autoscan', 'allowlist', 'blocklist'], (result) => {
+    settings = { ...settings, ...result };
+    console.log("Phishing Detector: Settings loaded", settings);
+});
+
+// Listen for settings changes
+chrome.storage.onChanged.addListener((changes, namespace) => {
+    if (namespace === 'sync') {
+        if (changes.autoscan) settings.autoscan = changes.autoscan.newValue;
+        if (changes.allowlist) settings.allowlist = changes.allowlist.newValue;
+        if (changes.blocklist) settings.blocklist = changes.blocklist.newValue;
+    }
+});
+
 // Helper to run analysis
 function runAnalysis(emailData) {
     let analysisResult = { score: 0, flags: [], isSuspicious: false };
+
     if (window.PhishingHeuristics) {
-        analysisResult = window.PhishingHeuristics.analyze(emailData);
+        analysisResult = window.PhishingHeuristics.analyze(emailData, settings.allowlist, settings.blocklist);
         console.log("Phishing Detector: Analysis Result", analysisResult);
     } else {
         console.error("Phishing Detector: Heuristics engine not loaded.");
@@ -146,53 +172,86 @@ function runAnalysis(emailData) {
     return analysisResult;
 }
 
-// Auto-scan observer for Privacy (Only detects presence, does not scan)
+// Auto-scan observer
 let lastUrl = location.href;
 const observer = new MutationObserver(() => {
-    // Check if URL changed (Gmail changes URL hash when opening emails)
+    // Check if URL changed
     if (location.href !== lastUrl) {
         lastUrl = location.href;
         // Clear cache on navigation
         cachedResult = null;
         cachedUrl = "";
-        checkForEmailPresence();
+        handleEmailDetection();
     }
 
-    // Also check if an email body appeared (for initial load)
+    // Also check if an email body appeared
     if (document.querySelector(SELECTORS.body)) {
-        checkForEmailPresence();
+        handleEmailDetection();
     }
 });
 
 observer.observe(document.body, { subtree: true, childList: true });
 
-let presenceDebounce = null;
-function checkForEmailPresence() {
-    if (presenceDebounce) clearTimeout(presenceDebounce);
-    presenceDebounce = setTimeout(() => {
-        // Check if we already have a result for this email
-        if (cachedResult && cachedUrl === location.href) {
-            return;
-        }
-
-        // We only check if the BODY element exists, we don't extract data yet
-        const bodyNode = document.querySelector(SELECTORS.body);
-        if (bodyNode) {
-            // Email detected! Set badge to "scan" (Yellow)
-            chrome.runtime.sendMessage({
-                action: "update_badge",
-                text: "Scan",
-                color: "#FBC02D" // Yellow
-            });
+let detectionDebounce = null;
+function handleEmailDetection() {
+    if (detectionDebounce) clearTimeout(detectionDebounce);
+    detectionDebounce = setTimeout(() => {
+        if (settings.autoscan) {
+            attemptAutoScan();
         } else {
-            // Clear badge if no email found
-            chrome.runtime.sendMessage({ action: "update_badge", text: "" });
+            checkForEmailPresence();
         }
-    }, 1000); // Wait 1s for DOM to settle
+    }, 1000);
+}
+
+function attemptAutoScan() {
+    const emailData = extractEmailData();
+    if (emailData) {
+        const result = runAnalysis(emailData);
+        updateBadge(result);
+
+        // Cache result
+        cachedResult = {
+            status: "scanned",
+            data: emailData,
+            result: result.isSuspicious ? "suspicious" : "safe",
+            analysis: result
+        };
+        cachedUrl = location.href;
+    } else {
+        chrome.runtime.sendMessage({ action: "update_badge", text: "" });
+    }
+}
+
+function checkForEmailPresence() {
+    // Check if we already have a result for this email
+    if (cachedResult && cachedUrl === location.href) {
+        return;
+    }
+
+    // We only check if the BODY element exists, we don't extract data yet
+    const bodyNode = document.querySelector(SELECTORS.body);
+    if (bodyNode) {
+        // Email detected! Set badge to "scan" (Yellow)
+        chrome.runtime.sendMessage({
+            action: "update_badge",
+            text: "Scan",
+            color: "#FBC02D" // Yellow
+        });
+    } else {
+        // Clear badge if no email found
+        chrome.runtime.sendMessage({ action: "update_badge", text: "" });
+    }
 }
 
 function updateBadge(result) {
-    if (result.isSuspicious) {
+    if (result.isSkipped) {
+        chrome.runtime.sendMessage({
+            action: "update_badge",
+            text: "Skip",
+            color: "#9E9E9E" // Grey
+        });
+    } else if (result.isSuspicious) {
         chrome.runtime.sendMessage({
             action: "update_badge",
             text: "!",

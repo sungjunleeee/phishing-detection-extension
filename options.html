@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Phishing Detector Settings</title>
+    <link rel="stylesheet" href="options.css">
+</head>
+
+<body>
+    <div class="container">
+        <h1>Settings</h1>
+
+        <div class="section">
+            <h2>General</h2>
+            <label class="toggle-control">
+                <input type="checkbox" id="autoscanToggle">
+                <span class="control"></span>
+                <span class="label">Enable Auto-Scan</span>
+            </label>
+            <p class="description">Automatically scan emails when they are opened. If disabled, you must click the
+                "Scan" button manually.</p>
+        </div>
+
+        <div class="section">
+            <h2>Allowlist (Safe Senders)</h2>
+            <p class="description">Emails from these domains or addresses will be marked as Safe.</p>
+            <div class="input-group">
+                <input type="text" id="allowlistInput" placeholder="e.g., columbia.edu, boss@company.com">
+                <button id="addAllowlistBtn">Add</button>
+            </div>
+            <ul id="allowlist" class="list"></ul>
+        </div>
+
+        <div class="section">
+            <h2>Blocklist (Always Suspicious)</h2>
+            <p class="description">Emails from these domains or addresses will always be flagged.</p>
+            <div class="input-group">
+                <input type="text" id="blocklistInput" placeholder="e.g., spam-site.net">
+                <button id="addBlocklistBtn">Add</button>
+            </div>
+            <ul id="blocklist" class="list"></ul>
+        </div>
+
+        <div id="status" class="status hidden">Settings Saved</div>
+    </div>
+    <script src="options.js"></script>
+</body>
+
+</html>

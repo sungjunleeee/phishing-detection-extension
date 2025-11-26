@@ -16,6 +16,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 statusDiv.className = 'status safe';
                 statusDiv.querySelector('.icon').textContent = '🛡️';
                 statusDiv.querySelector('.text').textContent = 'Safe';
+            } else if (response.result === 'skipped') {
+                statusDiv.className = 'status skipped';
+                statusDiv.querySelector('.icon').textContent = '⏭️';
+                statusDiv.querySelector('.text').textContent = 'Skipped';
             } else {
                 statusDiv.className = 'status danger';
                 statusDiv.querySelector('.icon').textContent = '⚠️';

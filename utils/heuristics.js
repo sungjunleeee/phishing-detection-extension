@@ -14,11 +14,25 @@ class HeuristicsEngine {
     /**
      * Analyze an email object and return a score and flags.
      * @param {Object} emailData - The extracted email data.
+     * @param {string[]} allowlist - List of safe domains/emails.
+     * @param {string[]} blocklist - List of blocked domains/emails.
      * @returns {Object} { score: number, flags: string[] }
      */
-    analyze(emailData) {
+    analyze(emailData, allowlist = [], blocklist = []) {
         let score = 0;
         const flags = [];
+
+        const senderEmail = emailData.senderEmail.toLowerCase();
+        const senderDomain = senderEmail.split('@')[1];
+
+        // 0. Check Allowlist/Blocklist
+        if (allowlist.some(item => senderEmail.includes(item) || (senderDomain && senderDomain.includes(item)))) {
+            return { score: 0, flags: ['Sender is in your Allowlist'], isSuspicious: false, isSkipped: true };
+        }
+
+        if (blocklist.some(item => senderEmail.includes(item) || (senderDomain && senderDomain.includes(item)))) {
+            return { score: 100, flags: ['Sender is in your Blocklist'], isSuspicious: true };
+        }
 
         // 1. Check for Urgency
         let urgencyScore = 0;
