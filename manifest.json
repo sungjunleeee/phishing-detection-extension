@@ -36,10 +36,18 @@
         "*://mail.google.com/*"
       ],
       "js": [
+        "src/content/naive_bayes.js",
         "src/utils/heuristics.js",
         "src/content/content.js"
       ],
       "run_at": "document_idle"
     }
+  ],
+  "web_accessible_resources": [
+    {
+      "resources": ["/src/utils/model.json"],
+      "matches": ["https://mail.google.com/*"]
+    }
   ]
+
 }
