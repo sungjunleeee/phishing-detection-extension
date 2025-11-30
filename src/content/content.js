@@ -224,18 +224,58 @@ chrome.storage.onChanged.addListener((changes, namespace) => {
     }
 });
 
-// Helper to run analysis
 function runAnalysis(emailData) {
-    let analysisResult = { score: 0, flags: [], isSuspicious: false };
+    // 1. Run existing heuristics
+    let heuristicResult = { score: 0, flags: [], isSuspicious: false };
 
     if (window.PhishingHeuristics) {
-        analysisResult = window.PhishingHeuristics.analyze(emailData, settings.allowlist, settings.blocklist);
-        console.log("Phishing Detector: Analysis Result", analysisResult);
+        heuristicResult = window.PhishingHeuristics.analyze(
+            emailData,
+            settings.allowlist,
+            settings.blocklist
+        );
+        console.log("Phishing Detector: Heuristic Analysis Result", heuristicResult);
     } else {
         console.error("Phishing Detector: Heuristics engine not loaded.");
     }
-    return analysisResult;
+
+    // If heuristics decided we should skip (verified sender / allowlist), bail out early
+    if (heuristicResult.isSkipped) {
+        return heuristicResult;
+    }
+
+    // 2. Naive Bayes analysis on subject + body
+    let bayes = null;
+    let phishingProbability = null;
+    let legitProbability = null;
+
+    if (window.NaiveBayesEmailClassifier && typeof window.NaiveBayesEmailClassifier.predict === "function") {
+        const fullText = `${emailData.subject || ""}\n\n${emailData.bodyText || ""}`;
+        bayes = window.NaiveBayesEmailClassifier.predict(fullText);
+
+        phishingProbability = bayes.phishingProbability;
+        legitProbability = bayes.legitProbability;
+
+        // 3. Combine: upgrade to suspicious if Bayes thinks it's strongly phishing
+        const combinedSuspicious =
+            heuristicResult.isSuspicious ||
+            phishingProbability >= 0.8 ||                        // very likely phishing
+            (phishingProbability >= 0.6 && heuristicResult.score >= 40); // both mildly bad
+
+        heuristicResult.isSuspicious = combinedSuspicious;
+    } else {
+        console.warn("Phishing Detector: NaiveBayesEmailClassifier not available");
+    }
+
+    // 4. Return combined result, preserving old fields but adding Bayes info
+    return {
+        ...heuristicResult,
+        bayes,
+        phishingProbability,
+        legitProbability
+    };
 }
+
 
 // Auto-scan observer
 let lastUrl = location.href;
