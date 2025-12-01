@@ -88,15 +88,16 @@ function extractEmailData() {
         // Look for the security row. It usually contains a lock icon or text like "Standard encryption"
         // The user pointed to a specific table row, but we'll try to find the text to be robust
         const rows = Array.from(detailsContainer.querySelectorAll('tr'));
-        const securityRow = rows.find(row => row.innerText.includes('encryption') || row.innerText.includes('security') || row.innerText.includes('TLS') || row.innerText.includes('S/MIME'));
+        // Use textContent instead of innerText to ensure we can read it even if hidden/styled out of flow
+        const securityRow = rows.find(row => row.textContent.includes('encryption') || row.textContent.includes('security') || row.textContent.includes('TLS') || row.textContent.includes('S/MIME'));
 
         if (securityRow) {
-            data.encryptionStatus = securityRow.innerText;
+            data.encryptionStatus = securityRow.textContent;
         } else {
             // Fallback: Try the user's specific path if generic search fails, but generalize the ID
             const specificNode = document.querySelector('div.adn.ads div.ajA.SK table tr:nth-child(7) td.gL span span');
             if (specificNode) {
-                data.encryptionStatus = specificNode.innerText;
+                data.encryptionStatus = specificNode.textContent;
             }
         }
     }
@@ -135,6 +136,9 @@ async function handleScanRequest(sendResponse) {
         return;
     }
 
+    // Enable hidden mode to prevent flash
+    setHiddenMode(true);
+
     // Attempt to expand details if not visible
     const wasExpanded = await expandDetails();
 
@@ -147,6 +151,9 @@ async function handleScanRequest(sendResponse) {
     if (wasExpanded) {
         collapseDetails();
     }
+
+    // Disable hidden mode
+    setHiddenMode(false);
 
     if (emailData) {
         const analysisResult = runAnalysis(emailData);
@@ -199,6 +206,31 @@ function collapseDetails() {
         document.querySelector('img.ajz');
     if (toggleBtn) {
         toggleBtn.click();
+    }
+}
+
+function setHiddenMode(enabled) {
+    const styleId = 'phishing-detector-hide-details';
+    let style = document.getElementById(styleId);
+    if (enabled) {
+        if (!style) {
+            style = document.createElement('style');
+            style.id = styleId;
+            // Hide the details pane and take it out of flow to prevent jump
+            style.textContent = `
+                div.ajA.SK {
+                    opacity: 0 !important;
+                    position: absolute !important;
+                    pointer-events: none !important;
+                    z-index: -9999 !important;
+                }
+            `;
+            document.head.appendChild(style);
+        }
+    } else {
+        if (style) {
+            style.remove();
+        }
     }
 }
 
@@ -332,8 +364,26 @@ function handleEmailDetection() {
     }, 200);
 }
 
-function attemptAutoScan() {
+async function attemptAutoScan() {
+    // Enable hidden mode to prevent flash/layout shift
+    setHiddenMode(true);
+
+    // Attempt to expand details if not visible to capture encryption status
+    const wasExpanded = await expandDetails();
+
+    // Allow a brief moment for DOM to update after expansion
+    await new Promise(resolve => setTimeout(resolve, 50));
+
     const emailData = extractEmailData();
+
+    // Restore state if we expanded it
+    if (wasExpanded) {
+        collapseDetails();
+    }
+
+    // Disable hidden mode
+    setHiddenMode(false);
+
     if (emailData) {
         const result = runAnalysis(emailData);
         updateBadge(result);
