@@ -7,7 +7,8 @@
     "storage"
   ],
   "host_permissions": [
-    "*://mail.google.com/*"
+    "*://mail.google.com/*",
+    "https://www.virustotal.com/*"
   ],
   "icons": {
     "16": "assets/icons/icon16.png",

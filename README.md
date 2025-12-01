@@ -17,6 +17,7 @@ We have developed a Chrome extension that performs client-side phishing and deep
     *   **Allowlist**: Mark trusted domains (e.g., `columbia.edu`) to skip scanning.
     *   **Blocklist**: Always flag specific suspicious senders.
     *   **Auto-Scan**: Optional feature to scan emails automatically upon opening.
+*   **🔗 Threat Intelligence**: Optional VirusTotal integration to check URLs against 70+ security vendor databases.
 *   **🦁 Custom Icons**: Features the Columbia Lion!
 
 ### Screenshots
@@ -74,6 +75,16 @@ Right-click the extension icon and select **"Options"** to access the Settings P
 *   **Allowlist**: Add safe domains (e.g., `columbia.edu`) to ignore warnings.
 *   **Blocklist**: Add known spam domains to always flag them.
 
+### Threat Intelligence Setup (Optional)
+To enhance detection with external threat databases:
+1.  Get a free VirusTotal API key at [virustotal.com](https://www.virustotal.com/) (sign in → profile → API Key).
+2.  Right-click the extension icon and select **"Options"**.
+3.  Enable **"VirusTotal URL checking"** in the Threat Intelligence section.
+4.  Enter your API key and save.
+5.  URLs in emails will now be checked against VirusTotal's database of known threats.
+
+**Note**: Free tier allows 4 requests/minute. The extension automatically handles rate limiting and caches results for 24 hours.
+
 ## 🔧 Technical Implementation
 
 ### Scam Detection Algorithm
@@ -98,6 +109,13 @@ We apply a set of deterministic rules to catch common phishing patterns:
 *   **Thresholds**: A score > 40 is considered suspicious.
 *   **Hybrid Approach**: The final verdict combines the heuristic score and the Naive Bayes probability. If the ML model is highly confident (probability ≥ 0.8), it can trigger a warning even if heuristics are ambiguous.
 
+#### D. Threat Intelligence (VirusTotal API)
+*   **External Database**: Queries VirusTotal's database of 70+ security vendors for known malicious URLs.
+*   **Pre-Analysis Check**: Runs BEFORE heuristics/ML analysis - known threats are flagged immediately with score 100.
+*   **Rate Limiting**: Respects VirusTotal's free tier limit (4 requests/minute) with automatic queuing.
+*   **Caching**: Results cached for 24 hours to minimize API calls and improve performance.
+*   **Architecture**: Uses background service worker for API calls to handle CORS restrictions.
+
 ## 🛠️ Development Structure
 
 ```text
@@ -120,7 +138,8 @@ phishing-detection-extension/
 │       ├── heuristics.js        # Rule-based detection logic
 │       ├── naive_bayes.js       # ML classifier implementation
 │       ├── model.json           # Pre-trained model parameters
-│       └── explanation_generator.js
+│       ├── explanation_generator.js
+│       └── threat_intel.js      # VirusTotal API integration
 └── assets/
     ├── icons/
     └── screenshots/
@@ -130,10 +149,12 @@ phishing-detection-extension/
 
 This extension is strictly scoped to `mail.google.com`. It does not collect, store, or transmit your personal data. All analysis is performed client-side using JavaScript.
 
+**Note on Threat Intelligence**: If you enable the optional VirusTotal integration, URLs from emails (not email content) will be sent to VirusTotal's API for threat checking. This feature is disabled by default and requires explicit opt-in.
+
 ## 👥 Project Team and Contributions
 *   **Wali Ahmed**: Dynamic explanation logic for suspicious emails.
 *   **Sungjun Lee**: Extension setup, UI, and heuristic algorithms.
-*   **Sameeha Liton**
+*   **Sameeha Liton**: VirusTotal threat intelligence integration, including API client development, rate limiting, caching, and background script architecture.
 *   **Isaac Schmidt**: ML model training and integration.
 *   **Ryan Shi**: ML model testing.
 
@@ -142,3 +163,4 @@ This extension is strictly scoped to `mail.google.com`. It does not collect, sto
 *   [Gmail Security: Verified Emails](https://support.google.com/mail/answer/13130196)
 *   [Kaggle: Fraudulent Email Corpus](https://www.kaggle.com/datasets/rtatman/fraudulent-email-corpus)
 *   [Mailgun: Understanding Email Ports & Encryption](https://www.mailgun.com/blog/email/which-smtp-port-understanding-ports-25-465-587/)
+*   [VirusTotal API Docs:](https://docs.virustotal.com/reference/overview)
