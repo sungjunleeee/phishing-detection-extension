@@ -241,6 +241,11 @@ function runAnalysis(emailData) {
 
     // If heuristics decided we should skip (verified sender / allowlist), bail out early
     if (heuristicResult.isSkipped) {
+        // Generate explanation for skipped emails
+        if (window.ExplanationGenerator) {
+            const explanation = window.ExplanationGenerator.generateExplanation(emailData, heuristicResult);
+            heuristicResult.explanation = explanation;
+        }
         return heuristicResult;
     }
 
@@ -268,12 +273,20 @@ function runAnalysis(emailData) {
     }
 
     // 4. Return combined result, preserving old fields but adding Bayes info
-    return {
+    const result = {
         ...heuristicResult,
         bayes,
         phishingProbability,
         legitProbability
     };
+
+    // 5. Generate human-readable explanation
+    if (window.ExplanationGenerator) {
+        const explanation = window.ExplanationGenerator.generateExplanation(emailData, result);
+        result.explanation = explanation;
+    }
+
+    return result;
 }
 
 
