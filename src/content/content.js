@@ -242,7 +242,7 @@ let settings = {
 };
 
 // Load settings
-chrome.storage.sync.get(['autoscan', 'allowlist', 'blocklist'], (result) => {
+chrome.storage.sync.get(['autoscan', 'allowlist', 'blocklist', 'threatIntel_enabled', 'api_virustotal'], (result) => {
     settings = { ...settings, ...result };
     console.log("Phishing Detector: Settings loaded", settings);
 });
@@ -253,11 +253,57 @@ chrome.storage.onChanged.addListener((changes, namespace) => {
         if (changes.autoscan) settings.autoscan = changes.autoscan.newValue;
         if (changes.allowlist) settings.allowlist = changes.allowlist.newValue;
         if (changes.blocklist) settings.blocklist = changes.blocklist.newValue;
+        if (changes.threatIntel_enabled) settings.threatIntel_enabled = changes.threatIntel_enabled.newValue;
+        if (changes.api_virustotal) settings.api_virustotal = changes.api_virustotal.newValue;
     }
 });
 
-function runAnalysis(emailData) {
-    // 1. Run existing heuristics
+async function runAnalysis(emailData) {
+    // 1. NEW: Threat Intelligence Check (VirusTotal)
+    const urls = emailData.links || [];
+    if (urls.length > 0 && settings.threatIntel_enabled && settings.api_virustotal) {
+        try {
+            console.log('Phishing Detector: Checking URLs with VirusTotal...');
+            const threatResult = await window.ThreatIntel.checkURLs(
+                urls, 
+                settings.api_virustotal
+            );
+            
+            // If malicious URL, flag immediately
+            if (threatResult.verdict === 'malicious') {
+                const maliciousUrl = threatResult.urls[0];
+                
+                return {
+                    score: 100,
+                    isSuspicious: true,
+                    isSkipped: false,
+                    flags: [
+                        `Malicious URL detected by ${maliciousUrl.malicious}/${maliciousUrl.totalScanners} security vendors`,
+                        `  → ${maliciousUrl.url}`
+                    ],
+                    threatIntel: threatResult,
+                    explanation: {
+                        verdict: 'This email contains a malicious link',
+                        reasons: [{
+                            category: 'Threat Intelligence',
+                            description: `Flagged by ${maliciousUrl.malicious} security vendors on VirusTotal`,
+                            detail: maliciousUrl.reportUrl
+                        }]
+                    }
+                };
+            }
+            
+            // If suspicious URL, log URL (to be used in combined analysis la)
+            if (threatResult.verdict === 'suspicious') {
+                console.log('Phishing Detector: URL flagged as suspicious by VirusTotal');
+            }
+        } catch (error) {
+            console.error('Phishing Detector: Threat intelligence check failed:', error);
+            // Continue with normal analysis on error
+        }
+    }
+
+    // 2. Run existing heuristics
     let heuristicResult = { score: 0, flags: [], isSuspicious: false };
 
     if (window.PhishingHeuristics) {
@@ -281,7 +327,7 @@ function runAnalysis(emailData) {
         return heuristicResult;
     }
 
-    // 2. Naive Bayes analysis on subject + body
+    // 3. Naive Bayes analysis on subject + body
     let bayes = null;
     let phishingProbability = null;
     let legitProbability = null;
@@ -303,7 +349,7 @@ function runAnalysis(emailData) {
         // Add to heuristic score and cap at 100
         heuristicResult.score = Math.min(100, Math.round(heuristicResult.score + mlScore));
 
-        // 3. Combine: upgrade to suspicious if Bayes thinks it's strongly phishing
+        // 4. Combine: upgrade to suspicious if Bayes thinks it's strongly phishing
         const combinedSuspicious =
             heuristicResult.isSuspicious ||
             phishingProbability >= 0.8 ||                        // very likely phishing
@@ -314,7 +360,7 @@ function runAnalysis(emailData) {
         console.warn("Phishing Detector: NaiveBayesEmailClassifier not available");
     }
 
-    // 4. Return combined result, preserving old fields but adding Bayes info
+    // 5. Return combined result, preserving old fields but adding Bayes info
     const result = {
         ...heuristicResult,
         bayes,
@@ -322,7 +368,7 @@ function runAnalysis(emailData) {
         legitProbability
     };
 
-    // 5. Generate human-readable explanation
+    // 6. Generate human-readable explanation
     if (window.ExplanationGenerator) {
         const explanation = window.ExplanationGenerator.generateExplanation(emailData, result);
         result.explanation = explanation;

@@ -193,5 +193,5 @@ class ThreatIntelligence {
     }
 }
 
-// Make available globally
+// make available globally
 window.ThreatIntel = new ThreatIntelligence();

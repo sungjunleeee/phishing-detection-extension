@@ -9,15 +9,33 @@ document.addEventListener('DOMContentLoaded', () => {
     const statusDiv = document.getElementById('status');
 
     // Load settings
-    chrome.storage.sync.get(['autoscan', 'allowlist', 'blocklist'], (result) => {
+    chrome.storage.sync.get(['autoscan', 'allowlist', 'blocklist', 'threatIntel_enabled', 'api_virustotal'], (result) => {
         autoscanToggle.checked = result.autoscan || false;
         renderList(allowlistUl, result.allowlist || ['columbia.edu']);
         renderList(blocklistUl, result.blocklist || []);
+        
+        // Threat Intelligence settings
+        document.getElementById('threatIntelToggle').checked = result.threatIntel_enabled || false;
+        document.getElementById('virusTotalApiKey').value = result.api_virustotal || '';
     });
 
     // Autoscan Toggle
     autoscanToggle.addEventListener('change', () => {
         chrome.storage.sync.set({ autoscan: autoscanToggle.checked }, showStatus);
+    });
+
+    // Threat Intelligence Toggle
+    document.getElementById('threatIntelToggle').addEventListener('change', () => {
+        chrome.storage.sync.set({ 
+            threatIntel_enabled: document.getElementById('threatIntelToggle').checked 
+        }, showStatus);
+    });
+
+    // VirusTotal API Key
+    document.getElementById('virusTotalApiKey').addEventListener('change', () => {
+        chrome.storage.sync.set({ 
+            api_virustotal: document.getElementById('virusTotalApiKey').value.trim() 
+        }, showStatus);
     });
 
     // Allowlist Logic

@@ -43,6 +43,31 @@
             <ul id="blocklist" class="list"></ul>
         </div>
 
+        <div class="section">
+            <h2>Threat Intelligence</h2>
+            <label class="toggle-control">
+                <input type="checkbox" id="threatIntelToggle">
+                <span class="control"></span>
+                <span class="label">Enable VirusTotal URL checking</span>
+            </label>
+            <p class="description">Check URLs against VirusTotal's database before AI analysis. Requires a free API key.</p>
+            
+            <div class="input-group">
+                <input type="password" id="virusTotalApiKey" placeholder="Enter your VirusTotal API key">
+            </div>
+            <p class="description" style="font-size: 0.9em; color: #666;">
+                Get your free API key: Sign in at <a href="https://www.virustotal.com/" target="_blank" style="color: #1976d2;">virustotal.com</a> → Profile → API Key
+            </p>
+            
+            <div style="background: #fff3cd; padding: 10px; border-radius: 4px; margin-top: 10px; font-size: 0.9em;">
+                <strong>Privacy:</strong> When enabled, URLs from emails will be sent to VirusTotal for verification. No email content is transmitted.
+            </div>
+            
+            <div style="background: #e3f2fd; padding: 10px; border-radius: 4px; margin-top: 10px; font-size: 0.9em;">
+                 <strong>Rate Limit:</strong> Free tier allows 4 requests/minute. The extension automatically handles rate limiting.
+            </div>
+        </div>
+
         <div id="status" class="status hidden">Settings Saved</div>
     </div>
     <script src="options.js"></script>
