@@ -102,40 +102,40 @@ We apply a set of deterministic rules to catch common phishing patterns:
 
 ```text
 phishing-detection-extension/
-├── manifest.json        # Extension configuration
-├── src/                 # Source code
-│   ├── background/      # Background service workers
+├── manifest.json
+├── src/
+│   ├── background/
 │   │   └── background.js
-│   ├── content/         # Scripts injected into web pages
-│   │   └── content.js
-│   ├── options/         # Settings page implementation
+│   ├── content/
+│   │   └── content.js           # Extracts email data & triggers scan
+│   ├── options/
 │   │   ├── options.html
 │   │   ├── options.js
 │   │   └── options.css
-│   ├── popup/           # Extension popup implementation
+│   ├── popup/
 │   │   ├── popup.html
 │   │   ├── popup.css
 │   │   └── popup.js
-│   └── utils/           # Shared utilities and logic
-│       ├── heuristics.js            # Rule-based detection logic
-│       ├── naive_bayes.js           # ML model implementation
-│       ├── model.json               # Pre-trained ML model parameters
-│       └── explanation_generator.js # Generates user-friendly explanations
-└── assets/              # Static assets (images, fonts)
-    ├── icons/           # Extension icons
-    └── screenshots/     # Images for README
+│   └── utils/
+│       ├── heuristics.js        # Rule-based detection logic
+│       ├── naive_bayes.js       # ML classifier implementation
+│       ├── model.json           # Pre-trained model parameters
+│       └── explanation_generator.js
+└── assets/
+    ├── icons/
+    └── screenshots/
 ```
 
 ## 🔒 Privacy Policy
 
 This extension is strictly scoped to `mail.google.com`. It does not collect, store, or transmit your personal data. All analysis is performed client-side using JavaScript.
 
-## 👥 Project Team
-*   Wali Ahmed
-*   Sungjun Lee
-*   Sameeha Liton
-*   Isaac Schmidt
-*   Ryan Shi
+## 👥 Project Team and Contributions
+*   **Wali Ahmed**: Dynamic explanation logic for suspicious emails.
+*   **Sungjun Lee**: Extension setup, UI, and heuristic algorithms.
+*   **Sameeha Liton**
+*   **Isaac Schmidt**: ML model training and integration.
+*   **Ryan Shi**: ML model testing.
 
 ## 📚 References
 *   [Chrome Extensions Documentation](https://developer.chrome.com/docs/extensions/get-started)
