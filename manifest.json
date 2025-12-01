@@ -7,7 +7,8 @@
     "storage"
   ],
   "host_permissions": [
-    "*://mail.google.com/*"
+    "*://mail.google.com/*",
+    "https://www.virustotal.com/*"
   ],
   "icons": {
     "16": "assets/icons/icon16.png",
@@ -39,6 +40,7 @@
         "src/utils/naive_bayes.js",
         "src/utils/heuristics.js",
         "src/utils/explanation_generator.js",
+        "src/utils/threat_intel.js",
         "src/content/content.js"
       ],
       "run_at": "document_idle"
