@@ -175,10 +175,15 @@ class ExplanationGenerator {
             }
         }
 
-        // 6. High ML confidence (if no other strong signals)
-        if (issueTypes.length === 0 && analysisResult.phishingProbability >= 0.7) {
+        // 6. High ML confidence
+        if (analysisResult.phishingProbability >= 0.7) {
             hasHighMLConfidence = true;
             issueTypes.push('phishing patterns');
+            evidence.push({
+                type: 'ml',
+                label: 'AI Analysis',
+                value: `High confidence (${Math.round(analysisResult.phishingProbability * 100)}%)`
+            });
         }
 
         // Build comprehensive summary
@@ -204,7 +209,7 @@ class ExplanationGenerator {
      * Build a comprehensive summary sentence combining all detected issues
      */
     buildComprehensiveSummary(emailData, issueTypes, hasSenderMismatch, hasBlocklist,
-                               hasNoEncryption, hasUrgency, hasSuspiciousLinks, hasHighMLConfidence) {
+        hasNoEncryption, hasUrgency, hasSuspiciousLinks, hasHighMLConfidence) {
         // Single issue - be specific
         if (issueTypes.length === 1) {
             if (hasSenderMismatch) {

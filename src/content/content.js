@@ -261,6 +261,16 @@ function runAnalysis(emailData) {
         phishingProbability = bayes.phishingProbability;
         legitProbability = bayes.legitProbability;
 
+        // Calculate ML contribution to score
+        // We only add to the score if probability > 0.5
+        // 0.5 -> 0 pts
+        // 0.8 -> 60 pts
+        // 1.0 -> 100 pts
+        const mlScore = Math.max(0, (phishingProbability - 0.5) * 200);
+
+        // Add to heuristic score and cap at 100
+        heuristicResult.score = Math.min(100, Math.round(heuristicResult.score + mlScore));
+
         // 3. Combine: upgrade to suspicious if Bayes thinks it's strongly phishing
         const combinedSuspicious =
             heuristicResult.isSuspicious ||
