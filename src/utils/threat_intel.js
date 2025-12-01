@@ -192,6 +192,3 @@ class ThreatIntelligence {
         return new Promise(resolve => setTimeout(resolve, ms));
     }
 }
-
-// make available globally
-window.ThreatIntel = new ThreatIntelligence();

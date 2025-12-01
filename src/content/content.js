@@ -156,7 +156,7 @@ async function handleScanRequest(sendResponse) {
     setHiddenMode(false);
 
     if (emailData) {
-        const analysisResult = runAnalysis(emailData);
+        const analysisResult = await runAnalysis(emailData);
 
         // Update badge after manual scan
         updateBadge(analysisResult);
@@ -264,10 +264,17 @@ async function runAnalysis(emailData) {
     if (urls.length > 0 && settings.threatIntel_enabled && settings.api_virustotal) {
         try {
             console.log('Phishing Detector: Checking URLs with VirusTotal...');
-            const threatResult = await window.ThreatIntel.checkURLs(
-                urls, 
-                settings.api_virustotal
-            );
+            
+            // Send to background script for API call (content scripts can't make CORS requests)
+            const threatResult = await new Promise((resolve) => {
+                chrome.runtime.sendMessage({
+                    action: 'check_threat_intel',
+                    urls: urls,
+                    apiKey: settings.api_virustotal
+                }, (response) => {
+                    resolve(response);
+                });
+            });
             
             // If malicious URL, flag immediately
             if (threatResult.verdict === 'malicious') {
@@ -431,7 +438,7 @@ async function attemptAutoScan() {
     setHiddenMode(false);
 
     if (emailData) {
-        const result = runAnalysis(emailData);
+        const result = await runAnalysis(emailData);
         updateBadge(result);
 
         // Cache result

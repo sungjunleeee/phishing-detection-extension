@@ -69,6 +69,59 @@ document.addEventListener("DOMContentLoaded", () => {
       } else {
         scoreContainer.classList.add("hidden");
       }
+
+      // Display Threat Intelligence Results
+      const threatIntelSection = document.getElementById("threatIntelSection");
+      const threatIntelContent = document.getElementById("threatIntelContent");
+
+      if (response.analysis && response.analysis.threatIntel && response.analysis.threatIntel.urls.length > 0) {
+        threatIntelSection.classList.remove("hidden");
+        const urlResult = response.analysis.threatIntel.urls[0];
+
+        if (urlResult.verdict === "malicious") {
+          threatIntelContent.innerHTML = `
+            <div class="threat-intel-alert malicious">
+              <strong>Malicious URL Detected</strong>
+              <div class="threat-intel-url">${urlResult.url}</div>
+              <div class="threat-intel-stats">
+                Flagged by ${urlResult.malicious}/${urlResult.totalScanners} security vendors
+              </div>
+              <a href="${urlResult.reportUrl}" target="_blank" class="threat-intel-link">View full report →</a>
+            </div>
+          `;
+        } else if (urlResult.verdict === "suspicious") {
+          threatIntelContent.innerHTML = `
+            <div class="threat-intel-alert suspicious">
+              <strong>Suspicious URL</strong>
+              <div class="threat-intel-url">${urlResult.url}</div>
+              <div class="threat-intel-stats">
+                Flagged by ${urlResult.threatCount}/${urlResult.totalScanners} vendors
+              </div>
+              <a href="${urlResult.reportUrl}" target="_blank" class="threat-intel-link">View full report →</a>
+            </div>
+          `;
+        } else if (urlResult.verdict === "safe") {
+          threatIntelContent.innerHTML = `
+            <div class="threat-intel-alert safe">
+              <strong>URL verified clean</strong>
+              <div class="threat-intel-stats">
+                0/${urlResult.totalScanners} vendors flagged this URL
+              </div>
+            </div>
+          `;
+        } else if (urlResult.submitted) {
+          threatIntelContent.innerHTML = `
+            <div class="threat-intel-alert unknown">
+              <strong>URL submitted for scanning</strong>
+              <div class="threat-intel-stats">
+                Results will be available after analysis completes
+              </div>
+            </div>
+          `;
+        }
+      } else {
+        threatIntelSection.classList.add("hidden");
+      }
     } else {
       const explanationSummary = document.getElementById("explanationSummary");
       explanationSummary.textContent = response

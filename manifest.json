@@ -40,7 +40,6 @@
         "src/utils/naive_bayes.js",
         "src/utils/heuristics.js",
         "src/utils/explanation_generator.js",
-        "src/utils/threat_intel.js",
         "src/content/content.js"
       ],
       "run_at": "document_idle"
